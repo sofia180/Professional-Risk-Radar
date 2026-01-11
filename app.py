@@ -14,9 +14,9 @@ from history import save_portfolio_history
 st.set_page_config(page_title="Legendary Risk Radar", layout="wide")
 
 # ----------------------------
-# Серый стиль для всей страницы
-bg_color = "#2E2E2E"  # серый фон
-text_color = "#FFFFFF" # белый текст
+# Белая тема для всей страницы
+bg_color = "#FFFFFF"  # белый фон
+text_color = "#000000" # черный текст
 
 st.markdown(f"""
 <style>
@@ -31,7 +31,7 @@ st.markdown(f"""
 }}
 /* Кнопки */
 .stButton>button {{
-    background-color: #4B4B4B;
+    background-color: #f0f2f6;
     color: {text_color};
 }}
 /* DataFrames */
