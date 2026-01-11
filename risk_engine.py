@@ -1,29 +1,23 @@
 import numpy as np
 
 def calculate_pd(series):
-    # Probability of Default
-    return np.clip(series.mean()/100, 0, 1)
+    return (series <= 0).mean()
 
 def calculate_lgd(series):
-    # Loss Given Default
-    return np.clip(series.std()/100, 0, 1)
+    losses = series[series < 0]
+    return abs(losses.mean()) if len(losses) > 0 else 0
 
 def calculate_ead(series):
-    # Exposure at Default
-    return series.max()
+    return series.mean()
 
-def calculate_var(series, confidence_level=95):
-    # Value at Risk
-    return np.percentile(series, 100 - confidence_level)
+def calculate_var(series, confidence_level=0.95):
+    return np.percentile(series, 100*(1-confidence_level))
 
-def calculate_es(series, confidence_level=95):
-    # Expected Shortfall
+def calculate_es(series, confidence_level=0.95):
     var = calculate_var(series, confidence_level)
     return series[series <= var].mean()
 
 def credit_score(series):
-    # Dummy scoring function: можно подключить ML модель
-    mean = series.mean()
-    std = series.std()
-    score = np.clip(100 - std/mean*50, 0, 100)
-    return score
+    normalized = (series - series.min()) / (series.max() - series.min() + 1e-9)
+    score = 300 + normalized * 550
+    return score.mean()
