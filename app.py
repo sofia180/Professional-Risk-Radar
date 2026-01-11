@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+from datetime import datetime
 
 from risk_engine import calculate_pd, calculate_lgd, calculate_ead, calculate_var, calculate_es, credit_score
 from portfolio import portfolio_risk, correlation_matrix, stress_scenario
@@ -20,24 +21,36 @@ shock_pct = st.sidebar.slider("Stress Shock %", 0, 50, 10)
 uploaded_file = st.sidebar.file_uploader("Upload CSV/XLSX", type=["csv","xlsx"])
 
 # ----------------------------
-# Apply Dark/Light Theme via CSS
+# Apply full-page Dark/Light Theme via CSS
 if theme == "Dark":
     st.markdown("""
         <style>
-        /* Background */
+        /* Main page background */
         .css-18e3th9 {background-color: #0E1117;}
-        .css-1v0mbdj {color: #FFFFFF;}
-        .css-1kyxreq {color: #FFFFFF;}
+        /* Sidebar background */
+        .css-1d391kg, .css-1v0mbdj, .css-1kyxreq, .css-1gkcyyc {
+            background-color: #0E1117 !important;
+            color: #FFFFFF !important;
+        }
+        /* Buttons */
         .stButton>button {background-color: #1f2228; color: #FFFFFF;}
+        /* DataFrames */
+        .stDataFrame div {background-color: #0E1117 !important; color: #FFFFFF !important;}
+        /* Headers and text */
+        h1, h2, h3, h4, h5, h6, .css-1v0mbdj, .css-1kyxreq {color: #FFFFFF !important;}
         </style>
         """, unsafe_allow_html=True)
 else:
     st.markdown("""
         <style>
         .css-18e3th9 {background-color: #FFFFFF;}
-        .css-1v0mbdj {color: #000000;}
-        .css-1kyxreq {color: #000000;}
+        .css-1d391kg, .css-1v0mbdj, .css-1kyxreq, .css-1gkcyyc {
+            background-color: #FFFFFF !important;
+            color: #000000 !important;
+        }
         .stButton>button {background-color: #f0f2f6; color: #000000;}
+        .stDataFrame div {background-color: #FFFFFF !important; color: #000000 !important;}
+        h1, h2, h3, h4, h5, h6, .css-1v0mbdj, .css-1kyxreq {color: #000000 !important;}
         </style>
         """, unsafe_allow_html=True)
 
@@ -50,6 +63,7 @@ if uploaded_file is None:
     st.info("👈 Upload a file to start")
     st.stop()
 
+# Read data
 try:
     if uploaded_file.name.endswith(".csv"):
         df = pd.read_csv(uploaded_file)
@@ -98,7 +112,8 @@ with tab1:
 
 # Tab 2: Portfolio
 with tab2:
-    st.write(portfolio_risk(df[numeric_cols]))
+    port_metrics = portfolio_risk(df[numeric_cols])
+    st.write(port_metrics)
     st.write("Correlation Matrix:")
     corr = correlation_matrix(df[numeric_cols])
     st.dataframe(corr.style.background_gradient(cmap='coolwarm'))
@@ -107,9 +122,9 @@ with tab2:
     stressed = stress_scenario(df[numeric_cols], shock_pct)
     st.dataframe(stressed)
 
-    save_portfolio_history(portfolio_risk(df[numeric_cols]))
+    save_portfolio_history(port_metrics)
 
-# Tab 3: ML
+# Tab 3: ML Predictions
 with tab3:
     ml_target = st.selectbox("Select target column", numeric_cols)
     model_type = st.radio("Choose model", ["Linear Regression", "Random Forest"])
@@ -130,3 +145,5 @@ with tab4:
         st.success(f"Report generated: {report_file}")
         st.download_button("Download Report", data=open(report_file,"rb").read(),
                            file_name=report_file, mime="application/octet-stream")
+
+st.caption(f"Legendary Risk Radar • Banking & Risk Analytics • ML Integrated • {datetime.now().year}")
