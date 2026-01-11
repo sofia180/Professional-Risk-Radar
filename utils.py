@@ -1,13 +1,12 @@
 import pandas as pd
 
 def clean_data(df):
-    # Простая очистка: убрать дубликаты и NaN
-    df = df.drop_duplicates()
-    df = df.fillna(0)
+    df = df.dropna()
     return df
 
 def validate_data(df):
     if df.empty:
         raise ValueError("Dataframe is empty after cleaning")
-    if df.shape[1] < 1:
-        raise ValueError("Dataframe has no columns")
+    numeric_cols = df.select_dtypes(include=["number"]).columns
+    if len(numeric_cols) == 0:
+        raise ValueError("No numeric columns found")
