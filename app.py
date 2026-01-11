@@ -3,8 +3,10 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 
-from risk_engine import calculate_risk_metrics
+from risk_engine import calculate_pd, calculate_lgd, calculate_ead, calculate_var, calculate_es, credit_score
+from portfolio import portfolio_risk, correlation_matrix, stress_test
 from report_generator import generate_report
+from utils import clean_data, validate_data
 
 # ----------------------------
 # Настройка страницы
@@ -14,23 +16,30 @@ st.title("🏦 Professional Risk Radar")
 st.success("✅ App is running")
 
 # ----------------------------
-# Sidebar: загрузка CSV
+# Sidebar: загрузка данных
 # ----------------------------
 st.sidebar.header("Controls")
-uploaded_file = st.sidebar.file_uploader("Upload CSV file", type=["csv"])
+uploaded_file = st.sidebar.file_uploader("Upload CSV/XLSX file", type=["csv", "xlsx"])
 
 if uploaded_file is None:
-    st.info("👈 Upload a CSV file to start analysis")
+    st.info("👈 Upload a CSV or XLSX file to start analysis")
     st.stop()
 
 # ----------------------------
-# Чтение CSV
+# Чтение данных
 # ----------------------------
 try:
-    df = pd.read_csv(uploaded_file)
+    if uploaded_file.name.endswith(".csv"):
+        df = pd.read_csv(uploaded_file)
+    else:
+        df = pd.read_excel(uploaded_file)
 except Exception as e:
-    st.error(f"❌ Error reading CSV: {e}")
+    st.error(f"❌ Error reading file: {e}")
     st.stop()
+
+# Очистка и валидация
+df = clean_data(df)
+validate_data(df)
 
 st.subheader("📄 Data Preview")
 st.dataframe(df.head(), use_container_width=True)
@@ -40,33 +49,56 @@ st.dataframe(df.head(), use_container_width=True)
 # ----------------------------
 numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
 if len(numeric_cols) == 0:
-    st.error("❌ No numeric columns found in CSV")
+    st.error("❌ No numeric columns found in file")
     st.stop()
 
 selected_col = st.selectbox("Select numeric column for risk analysis", numeric_cols)
 
 # ----------------------------
-# Расчёт риск-метрик через risk_engine
+# Расчёт риск-метрик
 # ----------------------------
-metrics = calculate_risk_metrics(df[selected_col])
-st.subheader("📊 Risk Metrics")
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric("Mean", round(metrics['mean'], 4))
-with col2:
-    st.metric("Std Dev", round(metrics['std'], 4))
-with col3:
-    st.metric("VaR (95%)", round(metrics['var_95'], 4))
+st.subheader("📊 Individual Risk Metrics")
+metrics = {
+    "PD": calculate_pd(df[selected_col]),
+    "LGD": calculate_lgd(df[selected_col]),
+    "EAD": calculate_ead(df[selected_col]),
+    "VaR 95%": calculate_var(df[selected_col]),
+    "Expected Shortfall": calculate_es(df[selected_col]),
+    "Credit Score": credit_score(df[selected_col])
+}
+
+col1, col2, col3, col4, col5, col6 = st.columns(6)
+with col1: st.metric("PD", round(metrics["PD"], 4))
+with col2: st.metric("LGD", round(metrics["LGD"], 4))
+with col3: st.metric("EAD", round(metrics["EAD"], 4))
+with col4: st.metric("VaR 95%", round(metrics["VaR 95%"], 4))
+with col5: st.metric("ES", round(metrics["Expected Shortfall"], 4))
+with col6: st.metric("Credit Score", round(metrics["Credit Score"], 4))
 
 # ----------------------------
-# График распределения
+# Портфельный анализ
+# ----------------------------
+st.subheader("📈 Portfolio Risk Analysis")
+st.write(portfolio_risk(df[numeric_cols]))
+st.write("Correlation Matrix:")
+st.dataframe(correlation_matrix(df[numeric_cols]))
+
+# ----------------------------
+# Стресс-тест
+# ----------------------------
+st.subheader("⚠️ Stress Test Simulation")
+stress_results = stress_test(df[numeric_cols])
+st.dataframe(stress_results)
+
+# ----------------------------
+# Графики распределения
 # ----------------------------
 st.subheader("📉 Distribution")
 fig_hist = px.histogram(df, x=selected_col, nbins=50, title=f"Distribution of {selected_col}")
 st.plotly_chart(fig_hist, use_container_width=True)
 
 # ----------------------------
-# Временной ряд (если есть колонка даты)
+# Временной ряд (если есть дата)
 # ----------------------------
 date_cols = df.select_dtypes(include=["object"]).columns.tolist()
 date_col = st.selectbox("Select date column (optional)", ["None"] + date_cols)
@@ -83,15 +115,15 @@ if date_col != "None":
 # Генерация отчёта
 # ----------------------------
 st.subheader("📝 Generate Report")
-if st.button("Generate CSV Report"):
+if st.button("Generate Report"):
     report_file = generate_report(df, selected_col)
     st.success(f"Report generated: {report_file}")
     st.download_button(
         label="Download Report",
         data=open(report_file, "rb").read(),
         file_name=report_file,
-        mime="text/csv"
+        mime="application/octet-stream"
     )
 
 st.divider()
-st.caption("Professional Risk Radar MVP • Streamlit • Banking Prototype")
+st.caption("Professional Risk Radar • Streamlit • Banking & Risk Analytics MVP")
