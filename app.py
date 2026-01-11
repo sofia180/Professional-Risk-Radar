@@ -9,7 +9,6 @@ from report_generator import generate_report
 from utils import clean_data, validate_data
 from ml_models import train_linear_model, train_random_forest, predict, explain_model
 
-# ----------------------------
 st.set_page_config(page_title="Legendary Risk Radar", layout="wide")
 st.title("🏦 Legendary Risk Radar")
 st.success("✅ App is running")
@@ -20,7 +19,6 @@ if uploaded_file is None:
     st.info("👈 Upload a file to start")
     st.stop()
 
-# ----------------------------
 try:
     if uploaded_file.name.endswith(".csv"):
         df = pd.read_csv(uploaded_file)
@@ -36,7 +34,6 @@ validate_data(df)
 st.subheader("📄 Data Preview")
 st.dataframe(df.head(), use_container_width=True)
 
-# ----------------------------
 numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
 if len(numeric_cols) == 0:
     st.error("❌ No numeric columns found")
