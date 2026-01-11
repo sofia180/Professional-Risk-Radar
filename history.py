@@ -1,11 +1,14 @@
-import os, json
+import pandas as pd
+import os
 
-def save_portfolio_history(metrics_dict, filename="history.json"):
-    if os.path.exists(filename):
-        with open(filename, "r") as f:
-            history = json.load(f)
+HISTORY_FILE = "portfolio_history.csv"
+
+def save_portfolio_history(metrics):
+    if os.path.exists(HISTORY_FILE):
+        history = pd.read_csv(HISTORY_FILE)
     else:
-        history = []
-    history.append(metrics_dict)
-    with open(filename, "w") as f:
-        json.dump(history, f)
+        history = pd.DataFrame()
+    
+    metrics["Timestamp"] = pd.Timestamp.now()
+    history = pd.concat([history, pd.DataFrame([metrics])], ignore_index=True)
+    history.to_csv(HISTORY_FILE, index=False)
