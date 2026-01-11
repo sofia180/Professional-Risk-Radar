@@ -1,6 +1,5 @@
 import pandas as pd
 from fpdf import FPDF
-import os
 
 def generate_report(df, main_col):
     pdf = FPDF()
@@ -13,7 +12,7 @@ def generate_report(df, main_col):
     pdf.cell(0, 10, f"Main metric: {main_col}", ln=True)
     pdf.ln(5)
     
-    # Добавляем таблицу
+    # Таблица первых 20 строк
     for col in df.columns:
         pdf.cell(40, 8, str(col), border=1)
     pdf.ln()
