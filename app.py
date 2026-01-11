@@ -125,4 +125,14 @@ with tab5:
     if st.button("Generate Report"):
         report_file = generate_report(df, numeric_cols[0])
         st.success(f"Report generated: {report_file}")
-        with open(report_file, "r_
+        # 🔥 исправлено: бинарный режим для PDF
+        with open(report_file, "rb") as f:
+            st.download_button(
+                label="Download Report",
+                data=f,
+                file_name=report_file,
+                mime="application/pdf"
+            )
+
+# Footer
+st.caption(f"Legendary Financial Risk Radar • Banking & Risk Analytics • ML Integrated • {datetime.now().year}")
