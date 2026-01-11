@@ -11,7 +11,7 @@ from utils import clean_data, validate_data
 from ml_models import train_linear_model, train_random_forest, explain_model
 from history import save_portfolio_history
 
-st.set_page_config(page_title="Legendary Risk Radar", layout="wide")
+st.set_page_config(page_title="Legendary Financial Risk Radar", layout="wide")
 
 # ----------------------------
 # Белая тема
@@ -29,7 +29,7 @@ h1,h2,h3,h4,h5,h6,.css-1v0mbdj,.css-1kyxreq {{color: {text_color} !important;}}
 """, unsafe_allow_html=True)
 
 # ----------------------------
-st.title("🏦 Legendary Risk Radar")
+st.title("🏦 Legendary Financial Risk Radar")
 st.success("✅ App is running")
 
 # Sidebar
@@ -62,7 +62,7 @@ if len(numeric_cols) == 0:
     st.stop()
 
 # Tabs
-tab1, tab2, tab3, tab4 = st.tabs(["Risk Metrics","Portfolio","ML Predictions","Reports"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Risk Metrics","Portfolio","ML Predictions","Scenario Simulation","Reports"])
 
 # Tab 1: Risk Metrics
 with tab1:
@@ -111,12 +111,27 @@ with tab3:
         shap_values = explain_model(results['model'], results['X_test'])
         st.dataframe(shap_values)
 
-# Tab 4: Reports
+# Tab 4: Scenario Simulation
 with tab4:
+    st.subheader("📊 Monte Carlo & What-if Scenarios")
+    simulations = 1000
+    mc_portfolio = []
+    for _ in range(simulations):
+        sample = df[numeric_cols].sample(frac=1, replace=True)
+        mc_portfolio.append(sample.mean().mean())
+    st.line_chart(mc_portfolio)
+
+    # Shock scenario
+    shocked = df[numeric_cols]*(1-shock_pct/100)
+    st.write(f"Portfolio under {shock_pct}% shock")
+    st.dataframe(shocked)
+
+# Tab 5: Reports
+with tab5:
     if st.button("Generate Report"):
         report_file = generate_report(df, numeric_cols[0])
         st.success(f"Report generated: {report_file}")
         st.download_button("Download Report", data=open(report_file,"rb").read(),
                            file_name=report_file, mime="application/octet-stream")
 
-st.caption(f"Legendary Risk Radar • Banking & Risk Analytics • ML Integrated • {datetime.now().year}")
+st.caption(f"Legendary Financial Risk Radar • Banking & Risk Analytics • ML Integrated • {datetime.now().year}")
