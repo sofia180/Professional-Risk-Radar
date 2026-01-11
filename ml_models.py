@@ -43,9 +43,6 @@ def train_random_forest(df, target_col):
     }
 
 def explain_model(model, X_test):
-    """
-    Возвращает SHAP значения для объяснения модели.
-    """
     explainer = shap.Explainer(model, X_test)
     shap_values = explainer(X_test)
     shap_df = pd.DataFrame(shap_values.values, columns=X_test.columns)
