@@ -64,3 +64,11 @@ def train_random_forest(df, target_col):
         "mse": mean_squared_error(y_test, y_pred),
         "r2": r2_score(y_test, y_pred)
     }
+def explain_model(model, X):
+    import pandas as pd
+    return pd.DataFrame({
+        "feature": X.columns,
+        "importance": model.feature_importances_
+        if hasattr(model, "feature_importances_")
+        else model.coef_
+    })
