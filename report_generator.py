@@ -1,17 +1,28 @@
 import pandas as pd
-import matplotlib.pyplot as plt
-from reportlab.pdfgen import canvas
-from datetime import datetime
+from fpdf import FPDF
+import os
 
-def generate_report(df, col_name):
-    # PDF
-    pdf_file = f"report_{col_name}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
-    c = canvas.Canvas(pdf_file)
-    c.drawString(50,800,f"Report for {col_name}")
-    c.drawString(50,780,f"Mean: {df[col_name].mean():.4f}")
-    c.drawString(50,760,f"Std: {df[col_name].std():.4f}")
-    c.save()
-    # XLSX
-    xlsx_file = f"report_{col_name}_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
-    df.to_excel(xlsx_file, index=False)
-    return pdf_file
+def generate_report(df, main_col):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, "Financial Risk Report", ln=True, align="C")
+    
+    pdf.set_font("Arial", "", 12)
+    pdf.ln(10)
+    pdf.cell(0, 10, f"Main metric: {main_col}", ln=True)
+    pdf.ln(5)
+    
+    # Добавляем таблицу
+    for col in df.columns:
+        pdf.cell(40, 8, str(col), border=1)
+    pdf.ln()
+    
+    for i in range(min(20, len(df))):
+        for col in df.columns:
+            pdf.cell(40, 8, str(df.iloc[i][col]), border=1)
+        pdf.ln()
+    
+    report_file = "financial_risk_report.pdf"
+    pdf.output(report_file)
+    return report_file
