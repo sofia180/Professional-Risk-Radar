@@ -1,7 +1,7 @@
+shap
+scikit-learn
 streamlit
 pandas
 numpy
 plotly
 openpyxl
-scikit-learn
-shap
