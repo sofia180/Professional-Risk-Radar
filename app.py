@@ -7,26 +7,19 @@ from risk_engine import calculate_pd, calculate_lgd, calculate_ead, calculate_va
 from portfolio import portfolio_risk, correlation_matrix, stress_test
 from report_generator import generate_report
 from utils import clean_data, validate_data
+from ml_models import train_linear_model, predict
 
-# ----------------------------
-# Настройка страницы
 # ----------------------------
 st.set_page_config(page_title="Professional Risk Radar", layout="wide")
 st.title("🏦 Professional Risk Radar")
 st.success("✅ App is running")
 
 # ----------------------------
-# Sidebar: загрузка данных
-# ----------------------------
-st.sidebar.header("Controls")
-uploaded_file = st.sidebar.file_uploader("Upload CSV/XLSX file", type=["csv", "xlsx"])
-
+uploaded_file = st.sidebar.file_uploader("Upload CSV/XLSX", type=["csv", "xlsx"])
 if uploaded_file is None:
-    st.info("👈 Upload a CSV or XLSX file to start analysis")
+    st.info("👈 Upload a file to start")
     st.stop()
 
-# ----------------------------
-# Чтение данных
 # ----------------------------
 try:
     if uploaded_file.name.endswith(".csv"):
@@ -37,7 +30,6 @@ except Exception as e:
     st.error(f"❌ Error reading file: {e}")
     st.stop()
 
-# Очистка и валидация
 df = clean_data(df)
 validate_data(df)
 
@@ -45,19 +37,15 @@ st.subheader("📄 Data Preview")
 st.dataframe(df.head(), use_container_width=True)
 
 # ----------------------------
-# Выбор числовой колонки для анализа
-# ----------------------------
 numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
 if len(numeric_cols) == 0:
-    st.error("❌ No numeric columns found in file")
+    st.error("❌ No numeric columns found")
     st.stop()
 
 selected_col = st.selectbox("Select numeric column for risk analysis", numeric_cols)
 
 # ----------------------------
-# Расчёт риск-метрик
-# ----------------------------
-st.subheader("📊 Individual Risk Metrics")
+# Risk Metrics
 metrics = {
     "PD": calculate_pd(df[selected_col]),
     "LGD": calculate_lgd(df[selected_col]),
@@ -66,40 +54,34 @@ metrics = {
     "Expected Shortfall": calculate_es(df[selected_col]),
     "Credit Score": credit_score(df[selected_col])
 }
-
 col1, col2, col3, col4, col5, col6 = st.columns(6)
-with col1: st.metric("PD", round(metrics["PD"], 4))
-with col2: st.metric("LGD", round(metrics["LGD"], 4))
-with col3: st.metric("EAD", round(metrics["EAD"], 4))
-with col4: st.metric("VaR 95%", round(metrics["VaR 95%"], 4))
-with col5: st.metric("ES", round(metrics["Expected Shortfall"], 4))
-with col6: st.metric("Credit Score", round(metrics["Credit Score"], 4))
+with col1: st.metric("PD", round(metrics["PD"],4))
+with col2: st.metric("LGD", round(metrics["LGD"],4))
+with col3: st.metric("EAD", round(metrics["EAD"],4))
+with col4: st.metric("VaR 95%", round(metrics["VaR 95%"],4))
+with col5: st.metric("ES", round(metrics["Expected Shortfall"],4))
+with col6: st.metric("Credit Score", round(metrics["Credit Score"],4))
 
 # ----------------------------
-# Портфельный анализ
-# ----------------------------
+# Portfolio Analysis
 st.subheader("📈 Portfolio Risk Analysis")
 st.write(portfolio_risk(df[numeric_cols]))
 st.write("Correlation Matrix:")
 st.dataframe(correlation_matrix(df[numeric_cols]))
 
 # ----------------------------
-# Стресс-тест
-# ----------------------------
+# Stress Test
 st.subheader("⚠️ Stress Test Simulation")
-stress_results = stress_test(df[numeric_cols])
-st.dataframe(stress_results)
+st.dataframe(stress_test(df[numeric_cols]))
 
 # ----------------------------
-# Графики распределения
-# ----------------------------
+# Distribution
 st.subheader("📉 Distribution")
 fig_hist = px.histogram(df, x=selected_col, nbins=50, title=f"Distribution of {selected_col}")
 st.plotly_chart(fig_hist, use_container_width=True)
 
 # ----------------------------
-# Временной ряд (если есть дата)
-# ----------------------------
+# Time Series
 date_cols = df.select_dtypes(include=["object"]).columns.tolist()
 date_col = st.selectbox("Select date column (optional)", ["None"] + date_cols)
 if date_col != "None":
@@ -112,8 +94,23 @@ if date_col != "None":
         st.warning(f"⚠️ Cannot build time series: {e}")
 
 # ----------------------------
-# Генерация отчёта
+# ML Risk Prediction
+st.subheader("🤖 ML Risk Prediction (Linear Model)")
+ml_target = st.selectbox("Select column to predict (target)", numeric_cols, index=0)
+if st.button("Train Linear Model"):
+    try:
+        results = train_linear_model(df, ml_target)
+        st.success(f"Model trained! MSE: {results['mse']:.4f}, R²: {results['r2']:.4f}")
+        st.write("Sample Predictions vs True Values:")
+        pred_df = results['X_test'].copy()
+        pred_df['True'] = results['y_test'].values
+        pred_df['Predicted'] = results['y_pred']
+        st.dataframe(pred_df.head(20))
+    except Exception as e:
+        st.error(f"Error training model: {e}")
+
 # ----------------------------
+# Generate Report
 st.subheader("📝 Generate Report")
 if st.button("Generate Report"):
     report_file = generate_report(df, selected_col)
@@ -126,4 +123,4 @@ if st.button("Generate Report"):
     )
 
 st.divider()
-st.caption("Professional Risk Radar • Streamlit • Banking & Risk Analytics MVP")
+st.caption("Professional Risk Radar • Streamlit • Banking & Risk Analytics MVP • ML Integrated")
