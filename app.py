@@ -2,23 +2,33 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+from datetime import datetime
 
 from risk_engine import calculate_pd, calculate_lgd, calculate_ead, calculate_var, calculate_es, credit_score
-from portfolio import portfolio_risk, correlation_matrix, stress_test
+from portfolio import portfolio_risk, correlation_matrix, stress_test, stress_scenario
 from report_generator import generate_report
 from utils import clean_data, validate_data
 from ml_models import train_linear_model, train_random_forest, predict, explain_model
+from history import save_portfolio_history
 
+# ----------------------------
 st.set_page_config(page_title="Legendary Risk Radar", layout="wide")
 st.title("🏦 Legendary Risk Radar")
 st.success("✅ App is running")
 
-# ----------------------------
+# Sidebar
+st.sidebar.header("Settings")
+theme = st.sidebar.radio("Theme", ["Light","Dark"])
+shock_pct = st.sidebar.slider("Stress Shock %", min_value=0, max_value=50, value=10)
+st.sidebar.markdown("---")
 uploaded_file = st.sidebar.file_uploader("Upload CSV/XLSX", type=["csv","xlsx"])
+
+# ----------------------------
 if uploaded_file is None:
     st.info("👈 Upload a file to start")
     st.stop()
 
+# Read data
 try:
     if uploaded_file.name.endswith(".csv"):
         df = pd.read_csv(uploaded_file)
@@ -40,7 +50,7 @@ if len(numeric_cols) == 0:
     st.stop()
 
 # ----------------------------
-tab1, tab2, tab3, tab4 = st.tabs(["Risk Metrics", "Portfolio", "ML Predictions", "Reports"])
+tab1, tab2, tab3, tab4 = st.tabs(["Risk Metrics","Portfolio","ML Predictions","Reports"])
 
 # ----------------------------
 with tab1:
@@ -54,13 +64,9 @@ with tab1:
         "Expected Shortfall": calculate_es(df[selected_col]),
         "Credit Score": credit_score(df[selected_col])
     }
-    col1,col2,col3,col4,col5,col6 = st.columns(6)
-    with col1: st.metric("PD", round(metrics["PD"],4))
-    with col2: st.metric("LGD", round(metrics["LGD"],4))
-    with col3: st.metric("EAD", round(metrics["EAD"],4))
-    with col4: st.metric("VaR 95%", round(metrics["VaR 95%"],4))
-    with col5: st.metric("ES", round(metrics["Expected Shortfall"],4))
-    with col6: st.metric("Credit Score", round(metrics["Credit Score"],4))
+    cols = st.columns(6)
+    for i, key in enumerate(metrics.keys()):
+        cols[i].metric(key, round(metrics[key],4))
 
     st.subheader("📉 Distribution")
     fig_hist = px.histogram(df, x=selected_col, nbins=50, title=f"Distribution of {selected_col}")
@@ -69,11 +75,13 @@ with tab1:
 # ----------------------------
 with tab2:
     st.subheader("📈 Portfolio Analysis")
-    st.write(portfolio_risk(df[numeric_cols]))
+    port_metrics = portfolio_risk(df[numeric_cols])
+    st.write(port_metrics)
     st.write("Correlation Matrix:")
     st.dataframe(correlation_matrix(df[numeric_cols]))
     st.subheader("⚠️ Stress Test Simulation")
-    st.dataframe(stress_test(df[numeric_cols]))
+    st.dataframe(stress_scenario(df[numeric_cols], shock_pct))
+    save_portfolio_history(port_metrics)  # Save version
 
 # ----------------------------
 with tab3:
@@ -106,4 +114,4 @@ with tab4:
         st.download_button("Download Report", data=open(report_file,"rb").read(),
                            file_name=report_file, mime="application/octet-stream")
 
-st.caption("Legendary Risk Radar • Banking & Risk Analytics • ML Integrated • Streamlit Dashboard")
+st.caption(f"Legendary Risk Radar • Banking & Risk Analytics • ML Integrated • {datetime.now().year}")
