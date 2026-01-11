@@ -22,3 +22,8 @@ def stress_test(df, shock=0.1):
         return pd.DataFrame()
     stressed = numeric_df*(1-shock)
     return stressed.describe()
+
+def stress_scenario(df, shock_pct=10):
+    numeric_df = df.select_dtypes(include=[np.number])
+    stressed_df = numeric_df * (1 - shock_pct/100)
+    return stressed_df.describe()
