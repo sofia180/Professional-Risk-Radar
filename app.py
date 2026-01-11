@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 
-# Подключение модулей проекта
 from risk_engine import calculate_risk_metrics
 from report_generator import generate_report
 
@@ -95,4 +94,4 @@ if st.button("Generate CSV Report"):
     )
 
 st.divider()
-st.caption("Professional Risk Radar MVP •
+st.caption("Professional Risk Radar MVP • Streamlit • Banking Prototype")
