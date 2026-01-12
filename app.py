@@ -1,151 +1,133 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
-from datetime import datetime
 
-from risk_engine import calculate_pd, calculate_lgd, calculate_ead, calculate_var, calculate_es, credit_score
-from portfolio import portfolio_risk, correlation_matrix, stress_scenario
-from report_generator import generate_report
-from utils import clean_data, validate_data
-from ml_models import train_linear_model, train_random_forest, explain_model
-from history import save_portfolio_history
+# -----------------------------
+# PAGE CONFIG
+# -----------------------------
+st.set_page_config(
+    page_title="Professional Risk Radar",
+    page_icon="📊",
+    layout="wide"
+)
 
-# ----------------------------
-# Настройка страницы
-st.set_page_config(page_title="Legendary Financial Risk Radar", layout="wide")
-st.markdown("<h1 style='text-align:center;'>🏦 Legendary Financial Risk Radar</h1>", unsafe_allow_html=True)
-st.markdown("---")
+# -----------------------------
+# HEADER
+# -----------------------------
+st.title("📊 Professional Risk Radar")
+st.markdown(
+    """
+    **MVP аналитической системы оценки рисков**  
+    Загрузите CSV-файл и получите базовую аналитику и корреляции.
+    """
+)
 
-# Sidebar
-shock_pct = st.sidebar.slider("Stress Shock %", 0, 50, 10)
-uploaded_file = st.sidebar.file_uploader("Upload CSV/XLSX", type=["csv","xlsx"])
+# -----------------------------
+# SIDEBAR
+# -----------------------------
+st.sidebar.header("⚙️ Управление")
 
+uploaded_file = st.sidebar.file_uploader(
+    "Загрузите CSV-файл",
+    type=["csv"]
+)
+
+# -----------------------------
+# MAIN LOGIC
+# -----------------------------
 if uploaded_file is None:
-    st.info("👈 Upload a CSV or XLSX file to start")
+    st.info("⬅️ Загрузите CSV-файл через боковое меню")
     st.stop()
 
-# ----------------------------
-# Чтение файла
+# -----------------------------
+# LOAD DATA
+# -----------------------------
 try:
-    if uploaded_file.name.endswith(".csv"):
-        df = pd.read_csv(uploaded_file)
-    else:
-        df = pd.read_excel(uploaded_file)
+    df = pd.read_csv(uploaded_file)
 except Exception as e:
-    st.error(f"❌ Error reading file: {e}")
+    st.error("Ошибка при загрузке файла")
+    st.exception(e)
     st.stop()
 
-df = clean_data(df)
-validate_data(df)
+# -----------------------------
+# DATA PREVIEW
+# -----------------------------
+st.subheader("📋 Загруженные данные")
+st.dataframe(df, use_container_width=True)
 
-numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-if len(numeric_cols) == 0:
-    st.error("❌ No numeric columns found. Upload file with numeric data.")
+# -----------------------------
+# BASIC INFO
+# -----------------------------
+st.subheader("ℹ️ Общая информация")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric("Строк", df.shape[0])
+
+with col2:
+    st.metric("Колонок", df.shape[1])
+
+with col3:
+    st.metric(
+        "Числовых колонок",
+        df.select_dtypes(include=np.number).shape[1]
+    )
+
+# -----------------------------
+# DESCRIPTIVE STATS
+# -----------------------------
+numeric_df = df.select_dtypes(include=np.number)
+
+if numeric_df.empty:
+    st.warning("В файле нет числовых данных для анализа.")
     st.stop()
 
-# ----------------------------
-# Tabs
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["Risk Metrics","Portfolio","ML Predictions","Scenario Simulation","Reports"])
+st.subheader("📈 Описательная статистика")
+st.dataframe(
+    numeric_df.describe().round(2),
+    use_container_width=True
+)
 
-# ----------------------------
-# Tab 1: Risk Metrics
-with tab1:
-    st.subheader("📊 Risk Metrics")
-    selected_col = st.selectbox("Select metric column", numeric_cols)
+# -----------------------------
+# CORRELATION
+# -----------------------------
+st.subheader("🔗 Корреляция показателей")
 
-    metrics = {
-        "PD": calculate_pd(df[selected_col]),
-        "LGD": calculate_lgd(df[selected_col]),
-        "EAD": calculate_ead(df[selected_col]),
-        "VaR 95%": calculate_var(df[selected_col]),
-        "Expected Shortfall": calculate_es(df[selected_col]),
-        "Credit Score": credit_score(df[selected_col])
-    }
+corr = numeric_df.corr()
 
-    cols = st.columns(len(metrics))
-    for i, key in enumerate(metrics.keys()):
-        cols[i].metric(key, round(metrics[key], 4))
+st.dataframe(
+    corr.round(2),
+    use_container_width=True
+)
 
-    st.subheader("📈 Distribution")
-    fig_hist = px.histogram(df, x=selected_col, nbins=50, title=f"Distribution of {selected_col}")
-    st.plotly_chart(fig_hist, use_container_width=True)
+# -----------------------------
+# SIMPLE RISK SCORE (OPTIONAL)
+# -----------------------------
+st.subheader("⚠️ Простейший Risk Score (MVP)")
 
-# ----------------------------
-# Tab 2: Portfolio
-with tab2:
-    st.subheader("💼 Portfolio Overview")
-    port_metrics = portfolio_risk(df[numeric_cols])
-    
-    cols = st.columns(len(port_metrics))
-    for i, key in enumerate(port_metrics.keys()):
-        cols[i].metric(key, round(port_metrics[key], 4))
-    
-    st.subheader("📊 Correlation Matrix")
-    corr = correlation_matrix(df[numeric_cols])
-    st.dataframe(corr.style.background_gradient(cmap='coolwarm').format("{:.2f}"), use_container_width=True)
+selected_columns = st.multiselect(
+    "Выберите показатели для расчёта риска",
+    options=numeric_df.columns.tolist()
+)
 
-    st.subheader(f"⚠️ Stress Test Simulation ({shock_pct}% Shock)")
-    stressed = stress_scenario(df[numeric_cols], shock_pct)
-    st.dataframe(stressed)
-    
-    # График стресс-теста
-    stress_means = stressed.mean().reset_index()
-    stress_means.columns = ["Metric","Value"]
-    fig_stress = px.bar(stress_means, x="Metric", y="Value", title="Stress Test Impact")
-    st.plotly_chart(fig_stress, use_container_width=True)
+if selected_columns:
+    risk_score = numeric_df[selected_columns].mean(axis=1)
 
-    save_portfolio_history(port_metrics)
+    result_df = df.copy()
+    result_df["Risk_Score"] = risk_score.round(2)
 
-# ----------------------------
-# Tab 3: ML Predictions
-with tab3:
-    st.subheader("🤖 ML Predictions")
-    ml_target = st.selectbox("Select target column", numeric_cols)
-    model_type = st.radio("Choose model", ["Linear Regression", "Random Forest"])
+    st.dataframe(
+        result_df,
+        use_container_width=True
+    )
 
-    if st.button("Train ML Model"):
-        results = train_linear_model(df, ml_target) if model_type=="Linear Regression" else train_random_forest(df, ml_target)
-        st.success(f"Model trained! MSE: {results['mse']:.4f}, R²: {results['r2']:.4f}")
+    st.success("Risk Score успешно рассчитан")
+else:
+    st.info("Выберите числовые колонки для расчёта Risk Score")
 
-        pred_df = results['X_test'].copy()
-        pred_df['True'] = results['y_test'].values
-        pred_df['Predicted'] = results['y_pred']
-        st.subheader("Predictions")
-        st.dataframe(pred_df.head(20))
-
-        shap_values = explain_model(results['model'], results['X_test'])
-        st.subheader("🔍 SHAP Feature Importance")
-        st.dataframe(shap_values.head(20))
-
-# ----------------------------
-# Tab 4: Scenario Simulation
-with tab4:
-    st.subheader("🎲 Monte Carlo Simulation")
-    simulations = 1000
-    mc_portfolio = [df[numeric_cols].sample(frac=1, replace=True).mean().mean() for _ in range(simulations)]
-    st.line_chart(mc_portfolio, use_container_width=True)
-
-    st.subheader(f"⚠️ Shock Scenario ({shock_pct}% reduction)")
-    shocked = df[numeric_cols]*(1-shock_pct/100)
-    st.dataframe(shocked)
-
-# ----------------------------
-# Tab 5: Reports
-with tab5:
-    st.subheader("📝 Generate PDF Report")
-    if st.button("Generate Report"):
-        report_file = generate_report(df, numeric_cols[0])
-        st.success(f"Report generated: {report_file}")
-        with open(report_file, "rb") as f:
-            st.download_button(
-                label="Download Report",
-                data=f,
-                file_name=report_file,
-                mime="application/pdf"
-            )
-
-# ----------------------------
-# Footer
+# -----------------------------
+# FOOTER
+# -----------------------------
 st.markdown("---")
-st.caption(f"Legendary Financial Risk Radar • Banking & Risk Analytics • ML Integrated • {datetime.now().year}")
+st.caption("Professional Risk Radar · MVP · Streamlit")
